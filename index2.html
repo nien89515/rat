@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>十以內加法打地鼠 - 歡樂教學版</title>
+    <style>
+        :root {
+            --grass-light: #8ed05e;
+            --grass-dark: #76b947;
+            --dirt: #795548;
+            --hole-inner: #3e2723;
+            --accent: #ffeb3b;
+            --text-main: #2d5a27;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #87ceeb 0%, #e0f7fa 100%);
+            font-family: "Comic Sans MS", "Microsoft JhengHei", sans-serif;
+            overflow: hidden;
+        }
+
+        /* 1:1 遊戲比例容器 */
+        #game-wrapper {
+            width: 95vmin;
+            height: 95vmin;
+            max-width: 600px;
+            max-height: 600px;
+            background: var(--grass-light);
+            background-image: radial-gradient(var(--grass-dark) 15%, transparent 16%),
+                              radial-gradient(var(--grass-dark) 15%, transparent 16%);
+            background-size: 30px 30px;
+            background-position: 0 0, 15px 15px;
+            border: 12px solid #558b2f;
+            border-radius: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* 頂部導覽列 */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            z-index: 50;
+            pointer-events: none;
+        }
+
+        .info-box {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 3px solid var(--text-main);
+            box-shadow: 0 4px 0 var(--text-main);
+            pointer-events: auto;
+        }
+
+        .label { font-size: 0.9rem; color: #666; font-weight: bold; }
+        .value { font-size: 1.5rem; color: var(--text-main); font-weight: 900; }
+
+        #music-btn {
+            background: white;
+            border: 3px solid var(--text-main);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 0 var(--text-main);
+        }
+
+        /* 遊戲地圖區 */
+        #game-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 15px;
+            padding: 85px 20px 20px 20px;
+        }
+
+        .hole-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+        }
+
+        /* 洞穴底部 */
+        .hole-base {
+            width: 100%;
+            height: 40px;
+            background: var(--hole-inner);
+            border-radius: 50%;
+            position: absolute;
+            bottom: 10px;
+            box-shadow: inset 0 8px 10px rgba(0,0,0,0.6);
+        }
+
+        /* 地鼠 */
+        .mole-actor {
+            width: 85%;
+            height: 90%;
+            position: relative;
+            bottom: -100%;
+            transition: bottom 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 5;
+        }
+
+        .mole-actor.up {
+            bottom: 15%;
+        }
+
+        /* 地鼠外型 (SVG) */
+        .mole-body {
+            width: 100%;
+            height: 100%;
+            background: #a1887f;
+            border-radius: 50% 50% 10% 10%;
+            border: 4px solid #4e342e;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        .mole-face::before, .mole-face::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #000;
+            border-radius: 50%;
+            top: 30%;
+        }
+        .mole-face::before { left: 30%; }
+        .mole-face::after { right: 30%; }
+
+        .mole-nose {
+            position: absolute;
+            width: 12px;
+            height: 8px;
+            background: #ff8a80;
+            border-radius: 50%;
+            top: 45%;
+        }
+
+        /* 修正：題目氣泡改為兩行顯示 */
+        .math-bubble {
+            position: absolute;
+            top: -45px;
+            background: white;
+            padding: 8px 12px;
+            border-radius: 18px;
+            border: 3px solid #4e342e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 80px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            animation: bounce 0.5s infinite alternate;
+            z-index: 10;
+        }
+
+        .bubble-result {
+            font-size: 1.6rem;
+            line-height: 1;
+            font-weight: 900;
+            color: #d32f2f; /* 醒目的紅色數字 */
+        }
+
+        .bubble-formula {
+            font-size: 0.9rem;
+            line-height: 1.2;
+            font-weight: 700;
+            color: #555;
+            margin-top: 2px;
+            border-top: 1px dashed #ccc;
+            padding-top: 2px;
+            width: 100%;
+            text-align: center;
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+
+        /* 視覺特效 */
+        .feedback-text {
+            position: absolute;
+            font-size: 2rem;
+            font-weight: 900;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+            z-index: 100;
+            animation: popOut 0.8s ease-out forwards;
+        }
+
+        @keyframes popOut {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { opacity: 1; transform: scale(1.2) translateY(-20px); }
+            100% { opacity: 0; transform: scale(1) translateY(-60px); }
+        }
+
+        /* 開始/結束畫面 */
+        #overlay-screen {
+            position: absolute;
+            inset: 0;
+            background: rgba(45, 90, 39, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .btn-main {
+            background: var(--accent);
+            color: var(--text-main);
+            border: none;
+            padding: 20px 50px;
+            font-size: 2rem;
+            font-weight: 900;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 0 #fbc02d;
+            transition: all 0.1s;
+            margin-top: 20px;
+        }
+
+        .btn-main:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #fbc02d;
+        }
+
+        .confetti-piece {
+            position: absolute;
+            width: 10px; height: 10px;
+            animation: fall-down 2s linear forwards;
+        }
+
+        @keyframes fall-down {
+            to { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-wrapper">
+    <!-- UI 層 -->
+    <div id="ui-layer">
+        <div class="info-box">
+            <div class="label">分數</div>
+            <div class="value" id="score-val">0</div>
+        </div>
+        <div class="info-box" style="text-align: center;">
+            <div class="label">時間</div>
+            <div class="value" id="time-val">30</div>
+        </div>
+        <button id="music-btn">🔇</button>
+    </div>
+
+    <!-- 地鼠網格 -->
+    <div id="game-grid">
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m0"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m1"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m2"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m3"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m4"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m5"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m6"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m7"></div></div>
+        <div class="hole-container"><div class="hole-base"></div><div class="mole-actor" id="m8"></div></div>
+    </div>
+
+    <!-- 蓋板 -->
+    <div id="overlay-screen">
+        <h1 style="font-size: 3.5rem; margin: 0;">打地鼠</h1>
+        <h2 style="font-size: 1.5rem; margin: 10px 0 30px;">10 以內加法大挑戰</h2>
+        <p>點擊算式<span style="color:var(--accent)">正確</span>的地鼠！</p>
+        <button class="btn-main" id="start-game-btn">開始玩！</button>
+    </div>
+</div>
+
+<script>
+    const scoreVal = document.getElementById('score-val');
+    const timeVal = document.getElementById('time-val');
+    const moleActors = document.querySelectorAll('.mole-actor');
+    const startBtn = document.getElementById('start-game-btn');
+    const overlay = document.getElementById('overlay-screen');
+    const musicBtn = document.getElementById('music-btn');
+
+    let score = 0;
+    let timeLeft = 30;
+    let isPlaying = false;
+    let audioCtx = null;
+    let isMusicOn = false;
+    let bgmOsc = null;
+    let gameTimer = null;
+
+    // 音訊初始化
+    function initAudio() {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    function playSfx(freqs, type = 'triangle', duration = 0.2) {
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freqs[0], audioCtx.currentTime);
+        if (freqs[1]) osc.frequency.exponentialRampToValueAtTime(freqs[1], audioCtx.currentTime + duration);
+        g.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function toggleMusic() {
+        initAudio();
+        isMusicOn = !isMusicOn;
+        musicBtn.textContent = isMusicOn ? "🎵" : "🔇";
+        if (isMusicOn) {
+            startBgm();
+        } else {
+            if (bgmOsc) { bgmOsc.stop(); bgmOsc = null; }
+        }
+    }
+
+    function startBgm() {
+        if (bgmOsc) bgmOsc.stop();
+        bgmOsc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        bgmOsc.type = 'sine';
+        bgmOsc.frequency.setValueAtTime(261.63, audioCtx.currentTime); // C4
+        g.gain.value = 0.02;
+        bgmOsc.connect(g);
+        g.connect(audioCtx.destination);
+        bgmOsc.start();
+    }
+
+    // 遊戲邏輯：修改題目生成方式
+    function generateQuestion() {
+        const a = Math.floor(Math.random() * 10) + 1;
+        const b = Math.floor(Math.random() * (11 - a));
+        const actualSum = a + b;
+        const isCorrectType = Math.random() > 0.4; // 60% 機率出正確算式
+        
+        let displayVal = actualSum;
+        if (!isCorrectType) {
+            // 隨機產生一個錯誤的結果
+            do { 
+                displayVal = Math.floor(Math.random() * 10) + 1; 
+            } while (displayVal === actualSum);
+        }
+
+        return { 
+            formula: `${a}+${b}`, 
+            result: displayVal, 
+            isCorrect: isCorrectType 
+        };
+    }
+
+    function spawnMole() {
+        if (!isPlaying) return;
+
+        const inactiveMoles = Array.from(moleActors).filter(m => !m.classList.contains('up'));
+        if (inactiveMoles.length === 0) return;
+
+        const mole = inactiveMoles[Math.floor(Math.random() * inactiveMoles.length)];
+        const q = generateQuestion();
+
+        // 修正：更新地鼠 HTML 結構，分為結果與算式
+        mole.innerHTML = `
+            <div class="math-bubble">
+                <div class="bubble-result">${q.result}</div>
+                <div class="bubble-formula">${q.formula}</div>
+            </div>
+            <div class="mole-body">
+                <div class="mole-face"></div>
+                <div class="mole-nose"></div>
+            </div>
+        `;
+        mole.dataset.correct = q.isCorrect;
+        mole.classList.add('up');
+
+        // 隨難度縮短停留時間
+        const stayTime = Math.max(700, 2200 - (score * 5));
+        
+        setTimeout(() => {
+            mole.classList.remove('up');
+            if (isPlaying) {
+                setTimeout(spawnMole, Math.random() * 800 + 400);
+            }
+        }, stayTime);
+    }
+
+    function createConfetti() {
+        const colors = ['#f44336', '#e91e63', '#9c27b0', '#2196f3', '#ffeb3b', '#4caf50'];
+        for(let i=0; i<30; i++) {
+            const p = document.createElement('div');
+            p.className = 'confetti-piece';
+            p.style.left = Math.random() * 100 + '%';
+            p.style.top = '-20px';
+            p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            p.style.transform = `rotate(${Math.random() * 360}deg)`;
+            document.getElementById('game-wrapper').appendChild(p);
+            setTimeout(() => p.remove(), 2000);
+        }
+    }
+
+    function showFeedback(text, x, y, isWin) {
+        const f = document.createElement('div');
+        f.className = 'feedback-text';
+        f.textContent = text;
+        f.style.color = isWin ? '#ffeb3b' : '#ff5252';
+        f.style.left = x + 'px';
+        f.style.top = y + 'px';
+        document.getElementById('game-wrapper').appendChild(f);
+        setTimeout(() => f.remove(), 800);
+    }
+
+    function handleMoleClick(e) {
+        if (!isPlaying) return;
+        const mole = e.currentTarget;
+        if (!mole.classList.contains('up')) return;
+
+        const isCorrect = mole.dataset.correct === "true";
+        const rect = mole.getBoundingClientRect();
+        const wrapperRect = document.getElementById('game-wrapper').getBoundingClientRect();
+        const x = rect.left - wrapperRect.left + rect.width/4;
+        const y = rect.top - wrapperRect.top;
+
+        if (isCorrect) {
+            score += 10;
+            playSfx([523, 1046], 'triangle', 0.3);
+            createConfetti();
+            showFeedback("棒極了! +10", x, y, true);
+        } else {
+            score = Math.max(0, score - 10);
+            playSfx([220, 110], 'sawtooth', 0.3);
+            showFeedback("加油! -10", x, y, false);
+        }
+
+        scoreVal.textContent = score;
+        mole.classList.remove('up');
+    }
+
+    function startGame() {
+        initAudio();
+        score = 0;
+        timeLeft = 30;
+        scoreVal.textContent = score;
+        timeVal.textContent = timeLeft;
+        isPlaying = true;
+        overlay.style.display = 'none';
+
+        if (isMusicOn) startBgm();
+
+        gameTimer = setInterval(() => {
+            timeLeft--;
+            timeVal.textContent = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+
+        spawnMole();
+        setTimeout(spawnMole, 700);
+    }
+
+    function endGame() {
+        isPlaying = false;
+        clearInterval(gameTimer);
+        if (bgmOsc) { bgmOsc.stop(); bgmOsc = null; }
+        
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+            <h1 style="color:var(--accent); font-size:4rem; text-shadow:4px 4px 0 var(--text-main);">時間到</h1>
+            <div style="font-size:2rem; margin: 20px 0;">總得分: <span style="font-size:4rem; color:var(--accent)">${score}</span></div>
+            <button class="btn-main" onclick="location.reload()">再玩一次</button>
+        `;
+    }
+
+    moleActors.forEach(m => m.addEventListener('mousedown', handleMoleClick));
+    startBtn.addEventListener('click', startGame);
+    musicBtn.addEventListener('click', toggleMusic);
+
+</script>
+</body>
+</html>
